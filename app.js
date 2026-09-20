@@ -3,6 +3,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
 const CFG_KEYS = ['STORE_NAME','EVENT_NAME','TAG_LINE','VERSION','MASCOT','LOGO','RECEIPT_FOOTER','QRIS_STATIC','WEBHOOK_URL','ROLE_ID_DAPUR'];
+const CFG_BOOL_KEYS = ['RECEIPT_LOGO'];
 const LS_KEY = 'bebyte-data-draft-v1';
 
 const menuList = $('#menu-list');
@@ -16,10 +17,12 @@ const saveState = $('#save-state');
 function getConfig() {
   const o = {};
   CFG_KEYS.forEach(k => { o[k] = ($('#cfg-' + k)?.value ?? '').trim(); });
+  CFG_BOOL_KEYS.forEach(k => { o[k] = $('#cfg-' + k)?.checked === true; });
   return o;
 }
 function setConfig(c = {}) {
   CFG_KEYS.forEach(k => { const el = $('#cfg-' + k); if (el && c[k] != null) el.value = c[k]; });
+  CFG_BOOL_KEYS.forEach(k => { const el = $('#cfg-' + k); if (el) el.checked = c[k] === true; });
 }
 
 // ---------- ITEMS ----------
@@ -184,7 +187,7 @@ $('#btn-copy').onclick = async () => {
 $('#btn-reset').onclick = () => {
   if (!confirm('Reset semua form ke kosong?')) return;
   localStorage.removeItem(LS_KEY);
-  setConfig({ STORE_NAME:'', EVENT_NAME:'', TAG_LINE:'', VERSION:'2026', MASCOT:'', LOGO:'', RECEIPT_FOOTER:'', QRIS_STATIC:'', WEBHOOK_URL:'', ROLE_ID_DAPUR:'' });
+  setConfig({ STORE_NAME:'', EVENT_NAME:'', TAG_LINE:'', VERSION:'2026', MASCOT:'', LOGO:'', RECEIPT_LOGO:false, RECEIPT_FOOTER:'', QRIS_STATIC:'', WEBHOOK_URL:'', ROLE_ID_DAPUR:'' });
   menuList.innerHTML = ''; addItem(); renumber(); sync();
 };
 $('#btn-upload').onclick = () => { $('#input-upload').value = ''; $('#input-upload').click(); };
@@ -200,7 +203,7 @@ $('#input-upload').addEventListener('change', async (e) => {
 $('#cfg-SHOW_WEBHOOK').addEventListener('change', (e) => {
   $('#cfg-WEBHOOK_URL').type = e.target.checked ? 'text' : 'password';
 });
-$$('#config-form input, #config-form textarea').forEach(el => el.addEventListener('input', sync));
+$$('#config-form input, #config-form textarea').forEach(el => { el.addEventListener('input', sync); el.addEventListener('change', sync); });
 
 // ---------- INIT ----------
 (function init() {
@@ -216,6 +219,7 @@ $$('#config-form input, #config-form textarea').forEach(el => el.addEventListene
     VERSION: '2026',
     MASCOT: 'assets/d-abi.dc.qr.square.png',
     LOGO: 'assets/d-abi-logo.png',
+    RECEIPT_LOGO: false,
     RECEIPT_FOOTER: '-= Terima Kasih =-',
     QRIS_STATIC: '',
     WEBHOOK_URL: '',
