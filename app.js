@@ -59,11 +59,25 @@ function addItem(data = {}) {
   const box = card.querySelector('.variant-box');
   const vlist = card.querySelector('.variant-list');
   // Nickname item hanya dipakai kalau TANPA varian (d-abi: displayName pakai nickname cuma saat no-variants).
-  // Kalau varian aktif -> nickname item di-disable (nilai tetap disimpan di form, tapi tidak ikut ke data.js).
+  // Kalau varian aktif -> field di-disable + isi penanda "lihat varian" (biar yg awam tidak bingung);
+  // nilai asli disimpan di dataset dan dikembalikan kalau varian dimatikan lagi. Tidak ikut ke data.js.
+  const NICK_MARKER = 'lihat varian 👇';
   const refreshNick = () => {
     const off = F('has_variants').checked;
-    F('nickname').disabled = off;
-    F('nickname').title = off ? 'Nonaktif: nickname diambil dari masing-masing varian' : '';
+    const inp = F('nickname');
+    if (off) {
+      if (!inp.disabled && inp.value !== NICK_MARKER) card.dataset.nickSaved = inp.value;
+      inp.value = NICK_MARKER;
+      inp.disabled = true;
+      inp.title = 'Nonaktif: nickname diambil dari masing-masing varian';
+    } else {
+      inp.disabled = false;
+      inp.title = '';
+      if (card.dataset.nickSaved !== undefined) {
+        if (inp.value === NICK_MARKER) inp.value = card.dataset.nickSaved;
+        delete card.dataset.nickSaved;
+      }
+    }
   };
   const refreshBox = () => box.classList.toggle('hidden', !F('has_variants').checked);
   refreshBox(); refreshNick();
