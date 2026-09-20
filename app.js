@@ -58,10 +58,17 @@ function addItem(data = {}) {
   F('has_variants').checked = hasVar;
   const box = card.querySelector('.variant-box');
   const vlist = card.querySelector('.variant-list');
+  // Nickname item hanya dipakai kalau TANPA varian (d-abi: displayName pakai nickname cuma saat no-variants).
+  // Kalau varian aktif -> nickname item di-disable (nilai tetap disimpan di form, tapi tidak ikut ke data.js).
+  const refreshNick = () => {
+    const off = F('has_variants').checked;
+    F('nickname').disabled = off;
+    F('nickname').title = off ? 'Nonaktif: nickname diambil dari masing-masing varian' : '';
+  };
   const refreshBox = () => box.classList.toggle('hidden', !F('has_variants').checked);
-  refreshBox();
+  refreshBox(); refreshNick();
   F('has_variants').addEventListener('change', () => {
-    refreshBox();
+    refreshBox(); refreshNick();
     if (F('has_variants').checked && !vlist.children.length) addVariant(vlist);
     sync();
   });
@@ -89,7 +96,7 @@ function readItem(card) {
     img: F('img'),
     active: C('active'),
   };
-  if (F('nickname')) item.nickname = F('nickname');
+  if (!C('has_variants') && F('nickname')) item.nickname = F('nickname');
   if (F('desc')) item.desc = F('desc');
   if (C('custom_qty')) item.custom_qty = true;
   if (C('has_variants')) {
@@ -172,6 +179,7 @@ $('#btn-add-item-2').onclick = () => addItem();
 $('#btn-download').onclick = () => {
   const menu = collectMenu();
   if (menu.some(m => !m.name)) { alert('Ada item yang namanya masih kosong!'); return; }
+  if (menu.some(m => !m.variants && !m.nickname)) { alert('Ada item TANPA varian yang nickname-nya masih kosong! Nickname wajib diisi kalau tidak pakai varian.'); return; }
   const code = generateDataJs();
   const blob = new Blob([code], { type: 'text/javascript' });
   const a = document.createElement('a');
