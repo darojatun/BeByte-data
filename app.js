@@ -49,7 +49,7 @@ function addItem(data = {}) {
   F('name').value = data.name ?? '';
   F('nickname').value = data.nickname ?? '';
   F('price').value = data.price ?? '';
-  F('category').value = data.category ?? 'Food';
+  F('category').value = data.category ?? '';
   F('img').value = data.img ?? '';
   F('desc').value = data.desc ?? '';
   F('active').checked = data.active !== false;
@@ -92,7 +92,7 @@ function readItem(card) {
     id: Number(F('id')) || nextId(),
     name: F('name'),
     price: Number(F('price')) || 0,
-    category: F('category') || 'Food',
+    category: F('category') || '',
     img: F('img'),
     active: C('active'),
   };
@@ -180,6 +180,7 @@ $('#btn-download').onclick = () => {
   const menu = collectMenu();
   if (menu.some(m => !m.name)) { alert('Ada item yang namanya masih kosong!'); return; }
   if (menu.some(m => !m.variants && !m.nickname)) { alert('Ada item TANPA varian yang nickname-nya masih kosong! Nickname wajib diisi kalau tidak pakai varian.'); return; }
+  if (menu.some(m => !m.category)) { alert('Ada item yang kategorinya masih kosong! Pilih dari daftar (Nasi, Teh, Kopi, ...).'); return; }
   const code = generateDataJs();
   const blob = new Blob([code], { type: 'text/javascript' });
   const a = document.createElement('a');
@@ -195,7 +196,7 @@ $('#btn-copy').onclick = async () => {
 $('#btn-reset').onclick = () => {
   if (!confirm('Reset semua form ke kosong?')) return;
   localStorage.removeItem(LS_KEY);
-  setConfig({ STORE_NAME:'', EVENT_NAME:'', TAG_LINE:'', VERSION:'2026', MASCOT:'', LOGO:'', RECEIPT_LOGO:false, RECEIPT_FOOTER:'', QRIS_STATIC:'', WEBHOOK_URL:'', ROLE_ID_DAPUR:'' });
+  setConfig({ STORE_NAME:'', EVENT_NAME:'', TAG_LINE:'', VERSION:'2026', MASCOT:'', LOGO:'', RECEIPT_LOGO:false, RECEIPT_FOOTER:'-= Terima Kasih =-', QRIS_STATIC:'', WEBHOOK_URL:'', ROLE_ID_DAPUR:'' });
   menuList.innerHTML = ''; addItem(); renumber(); sync();
 };
 $('#btn-upload').onclick = () => { $('#input-upload').value = ''; $('#input-upload').click(); };
@@ -220,12 +221,14 @@ $$('#config-form input, #config-form textarea').forEach(el => { el.addEventListe
     if (draft && (draft.menu?.length || draft.config)) { loadToForm(draft); return; }
   } catch {}
   // default: contoh 1 item kosong + config d-abi
+  // Default dicocokkan dengan /home/darojatun/Projects/bebyte/js/data.js
+  // (WEBHOOK_URL & QRIS_STATIC sengaja kosong — kredensial, isi manual per toko)
   setConfig({
-    STORE_NAME: 'D`Abi Coffe & Resto',
-    EVENT_NAME: 'Testing D-Abi FnB PoS',
-    TAG_LINE: 'Semangat Baru',
+    STORE_NAME: 'D`Abi Coffee & Resto',
+    EVENT_NAME: 'D`Abi Coffee & Resto🎉',
+    TAG_LINE: '🛋️Nongkrong 🍽️Makan 🥤Minum 🎤Karaoke 🎮Mabar 📺Nobar 📶Free WiFi',
     VERSION: '2026',
-    MASCOT: 'assets/d-abi.dc.qr.square.png',
+    MASCOT: 'assets/qr.dc.d-abi.png',
     LOGO: 'assets/d-abi-logo.png',
     RECEIPT_LOGO: false,
     RECEIPT_FOOTER: '-= Terima Kasih =-',
