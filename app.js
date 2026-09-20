@@ -141,6 +141,45 @@ function readItem(card) {
 function collectMenu() {
   return $$('.menu-item', menuList).map(readItem);
 }
+// ---------- VALIDASI ID UNIK ----------
+function rawIds() {
+  return $$('.menu-item', menuList).map(c => Number(c.querySelector('[data-f="id"]').value));
+}
+function findBadIds() {
+  const ids = rawIds();
+  const seen = new Set(), dups = new Set(), invalid = [];
+  ids.forEach((id, i) => {
+    if (!Number.isInteger(id) || id < 1) invalid.push(i + 1);
+    else if (seen.has(id)) dups.add(id);
+    else seen.add(id);
+  });
+  return { dups: [...dups], invalid };
+}
+function markDuplicates() {
+  const { dups, invalid } = findBadIds();
+  const badIdx = new Set();
+  if (dups.length || invalid.length) {
+    const ids = rawIds();
+    const firstSeen = new Set();
+    ids.forEach((id, i) => {
+      if (!Number.isInteger(id) || id < 1) badIdx.add(i);
+      else if (firstSeen.has(id) || dups.includes(id)) badIdx.add(i);
+      firstSeen.add(id);
+    });
+  }
+  $$('.menu-item', menuList).forEach((c, i) => {
+    c.querySelector('[data-f="id"]').classList.toggle('dup-id', badIdx.has(i));
+  });
+  const warn = $('#dup-warn');
+  if (dups.length || invalid.length) {
+    const parts = [];
+    if (dups.length) parts.push(`ID ganda: ${dups.join(', ')}`);
+    if (invalid.length) parts.push(`ID item ke-${invalid.join(', ke-')} kosong/tidak valid`);
+    $('#dup-warn-text').textContent = '⚠️ ' + parts.join(' • ');
+    warn.classList.remove('hidden');
+  } else warn.classList.add('hidden');
+  return { dups, invalid };
+}
 function renumber() {
   $$('.menu-item', menuList).forEach((c, i) => {
     c.querySelector('.item-title').textContent = `ITEM #${i + 1}`;
@@ -163,6 +202,7 @@ function sync() {
     const menu = collectMenu();
     previewInfo.textContent = `${menu.length} item • ${code.length} char`;
     localStorage.setItem(LS_KEY, JSON.stringify({ config: getConfig(), menu }));
+    markDuplicates();
     saveState.textContent = 'draft tersimpan ✓ ' + new Date().toLocaleTimeString('id-ID');
   } catch (e) { console.warn(e); }
 }
@@ -200,8 +240,34 @@ function loadToForm({ config, menu }) {
 // ---------- EVENTS ----------
 $('#btn-add-item').onclick = () => addItem();
 $('#btn-add-item-2').onclick = () => addItem();
+$('#btn-fix-ids').onclick = () => {
+  // Pertahankan kemunculan pertama, duplikat berikutnya diberi ID baru (max+1, max+2, ...)
+  const cards = $$('.menu-item', menuList);
+  const seen = new Set();
+  let mx = Math.max(0, ...rawIds().filter(Number.isInteger));
+  let fixed = 0;
+  cards.forEach(c => {
+    const inp = c.querySelector('[data-f="id"]');
+    let id = Number(inp.value);
+    if (!Number.isInteger(id) || id < 1 || seen.has(id)) { mx += 1; inp.value = mx; id = mx; fixed += 1; }
+    seen.add(id);
+  });
+  renumber(); sync();
+  alert(fixed ? `${fixed} ID diperbaiki.` : 'ID sudah unik semua.');
+};
 $('#btn-download').onclick = () => {
   const menu = collectMenu();
+  const { dups, invalid } = markDuplicates();
+  if (dups.length || invalid.length) {
+    const msg = [
+      dups.length ? `ID ganda: ${dups.join(', ')}` : null,
+      invalid.length ? `ID item ke-${invalid.join(', ke-')} kosong/tidak valid` : null,
+    ].filter(Boolean).join('\n');
+    alert(`ID item harus unik!\n${msg}\n\nKlik "🔢 Betulkan otomatis" atau ubah manual.`);
+    const firstBad = $$('.menu-item', menuList).find(c => c.querySelector('[data-f="id"]').classList.contains('dup-id'));
+    if (firstBad) firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   if (menu.some(m => !m.name)) { alert('Ada item yang namanya masih kosong!'); return; }
   if (menu.some(m => !m.variants && !m.nickname)) { alert('Ada item TANPA varian yang nickname-nya masih kosong! Nickname wajib diisi kalau tidak pakai varian.'); return; }
   if (menu.some(m => !m.category)) { alert('Ada item yang kategorinya masih kosong! Pilih dari daftar (Nasi, Teh, Kopi, ...).'); return; }
