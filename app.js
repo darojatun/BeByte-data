@@ -2,8 +2,13 @@
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
-const CFG_KEYS = ['STORE_NAME','EVENT_NAME','TAG_LINE','VERSION','MASCOT','LOGO','RECEIPT_FOOTER','QRIS_STATIC','WEBHOOK_URL','ROLE_ID_DAPUR'];
-const CFG_BOOL_KEYS = ['RECEIPT_LOGO'];
+// Urutan key disamakan dengan bebyte/js/data.js (key, tipe)
+const CFG_SCHEMA = [
+  ['STORE_NAME','str'],['EVENT_NAME','str'],['TAG_LINE','str'],['VERSION','str'],
+  ['MASCOT','str'],['LOGO','str'],['RECEIPT_LOGO','bool'],['RECEIPT_FOOTER','str'],
+  ['QRIS_STATIC','str'],['DISCORD','bool'],['WEBHOOK_URL','str'],['ROLE_ID_DAPUR','str'],
+];
+const cleanImg = (s) => String(s ?? '').trim().replace(/^\.\/+/, '');
 const LS_KEY = 'bebyte-data-draft-v1';
 
 const menuList = $('#menu-list');
@@ -16,13 +21,18 @@ const saveState = $('#save-state');
 // ---------- CONFIG ----------
 function getConfig() {
   const o = {};
-  CFG_KEYS.forEach(k => { o[k] = ($('#cfg-' + k)?.value ?? '').trim(); });
-  CFG_BOOL_KEYS.forEach(k => { o[k] = $('#cfg-' + k)?.checked === true; });
+  CFG_SCHEMA.forEach(([k, t]) => {
+    o[k] = t === 'bool' ? ($('#cfg-' + k)?.checked === true) : ($('#cfg-' + k)?.value ?? '').trim();
+  });
   return o;
 }
 function setConfig(c = {}) {
-  CFG_KEYS.forEach(k => { const el = $('#cfg-' + k); if (el && c[k] != null) el.value = c[k]; });
-  CFG_BOOL_KEYS.forEach(k => { const el = $('#cfg-' + k); if (el) el.checked = c[k] === true; });
+  CFG_SCHEMA.forEach(([k, t]) => {
+    const el = $('#cfg-' + k);
+    if (!el) return;
+    if (t === 'bool') { if (c[k] !== undefined) el.checked = c[k] === true; }
+    else if (c[k] != null) el.value = c[k];
+  });
 }
 
 // ---------- ITEMS ----------
@@ -50,7 +60,7 @@ function addItem(data = {}) {
   F('nickname').value = data.nickname ?? '';
   F('price').value = data.price ?? '';
   F('category').value = data.category ?? '';
-  F('img').value = data.img ?? '';
+  F('img').value = cleanImg(data.img ?? '');
   F('desc').value = data.desc ?? '';
   F('active').checked = data.active !== false;
   F('custom_qty').checked = !!data.custom_qty;
@@ -107,7 +117,7 @@ function readItem(card) {
     name: F('name'),
     price: Number(F('price')) || 0,
     category: F('category') || '',
-    img: F('img'),
+    img: cleanImg(F('img')),
     active: C('active'),
   };
   if (!C('has_variants') && F('nickname')) item.nickname = F('nickname');
@@ -210,7 +220,7 @@ $('#btn-copy').onclick = async () => {
 $('#btn-reset').onclick = () => {
   if (!confirm('Reset semua form ke kosong?')) return;
   localStorage.removeItem(LS_KEY);
-  setConfig({ STORE_NAME:'', EVENT_NAME:'', TAG_LINE:'', VERSION:'2026', MASCOT:'', LOGO:'', RECEIPT_LOGO:false, RECEIPT_FOOTER:'-= Terima Kasih =-', QRIS_STATIC:'', WEBHOOK_URL:'', ROLE_ID_DAPUR:'' });
+  setConfig({ STORE_NAME:'', EVENT_NAME:'', TAG_LINE:'', VERSION:'2026', MASCOT:'', LOGO:'', RECEIPT_LOGO:false, RECEIPT_FOOTER:'-= Terima Kasih =-', QRIS_STATIC:'', DISCORD:true, WEBHOOK_URL:'', ROLE_ID_DAPUR:'' });
   menuList.innerHTML = ''; addItem(); renumber(); sync();
 };
 $('#btn-upload').onclick = () => { $('#input-upload').value = ''; $('#input-upload').click(); };
@@ -247,6 +257,7 @@ $$('#config-form input, #config-form textarea').forEach(el => { el.addEventListe
     RECEIPT_LOGO: false,
     RECEIPT_FOOTER: '-= Terima Kasih =-',
     QRIS_STATIC: '',
+    DISCORD: true,
     WEBHOOK_URL: '',
     ROLE_ID_DAPUR: '',
   });
