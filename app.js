@@ -2,6 +2,58 @@
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
+// Batas karakter: hard = dipotong otomatis, soft = hanya peringatan.
+// Angka mengikuti lebar aman resi 58mm (W=28) & kerapian kartu menu bebyte.
+const LIMITS = {
+  STORE_NAME: { max: 26, hard: true },   // resi: dipotong 27 max (font 11px)
+  ITEM_NAME: { max: 25, hard: false },   // kartu menu: saran, kepanjangan bikin kartu tinggi
+  NICKNAME: { max: 15, hard: true },     // resi: "99x NICKNAME" muat di 28 kolom
+  ITEM_DESC: { max: 50, hard: false },   // kartu menu: saran deskripsi singkat
+  CATEGORY: { max: 15, hard: true },     // badge kategori kartu
+  RECEIPT_FOOTER: { max: 28, hard: true }, // resi: pas 1 baris penuh
+};
+function counterHTML(cur, lim, hard) {
+  const over = cur > lim;
+  const cls = over ? 'text-red-600' : (cur >= lim - 3 ? 'text-orange-500' : 'text-gray-400');
+  return `<span class="char-count ${cls} font-mono">(${cur}/${lim}${hard ? ' max' : ''})</span>`;
+}
+function bindLimit(input, { max, hard }) {
+  if (!input) return;
+  if (hard) input.maxLength = max; // cegah ketik lebih (native)
+  const label = input.closest('label');
+  const countEl = document.createElement('span');
+  countEl.className = 'ml-1 text-[10px] font-bold';
+  if (label && label.firstChild) label.firstChild.after(countEl);
+  const refresh = () => {
+    if (hard && input.value.length > max) input.value = input.value.slice(0, max);
+    countEl.innerHTML = counterHTML(input.value.length, max, hard);
+  };
+  input.addEventListener('input', refresh);
+  refresh();
+}
+const hardTrim = (s, max) => String(s ?? '').slice(0, max);
+// Periksa panjang mentah di form (sebelum trim): hard = akan dipotong, soft = saran saja.
+function checkLengths() {
+  const hard = [], soft = [];
+  const cfg = (k) => ($('#cfg-' + k)?.value ?? '');
+  if (cfg('STORE_NAME').length > LIMITS.STORE_NAME.max) hard.push(`STORE_NAME ${cfg('STORE_NAME').length}/${LIMITS.STORE_NAME.max} (dipotong otomatis)`);
+  if (cfg('RECEIPT_FOOTER').length > LIMITS.RECEIPT_FOOTER.max) hard.push(`RECEIPT_FOOTER ${cfg('RECEIPT_FOOTER').length}/${LIMITS.RECEIPT_FOOTER.max} (dipotong otomatis)`);
+  $$('.menu-item', menuList).forEach((c, i) => {
+    const n = `ITEM #${i + 1}`;
+    const g = (k) => c.querySelector(`[data-f="${k}"]`).value;
+    if (g('name').trim().length > LIMITS.ITEM_NAME.max) soft.push(`${n} nama ${g('name').trim().length}/${LIMITS.ITEM_NAME.max} (saran: ≤${LIMITS.ITEM_NAME.max})`);
+    if (!c.querySelector('[data-f="has_variants"]').checked && g('nickname').trim().length > LIMITS.NICKNAME.max) hard.push(`${n} nickname ${g('nickname').trim().length}/${LIMITS.NICKNAME.max} (dipotong otomatis)`);
+    if (g('desc').trim().length > LIMITS.ITEM_DESC.max) soft.push(`${n} deskripsi ${g('desc').trim().length}/${LIMITS.ITEM_DESC.max} (saran: ≤${LIMITS.ITEM_DESC.max})`);
+    if (g('category').trim().length > LIMITS.CATEGORY.max) hard.push(`${n} kategori ${g('category').trim().length}/${LIMITS.CATEGORY.max} (dipotong otomatis)`);
+    $$('.variant-row', c).forEach((r, j) => {
+      const V = (k) => r.querySelector(`[data-v="${k}"]`).value;
+      if (V('name').trim().length > LIMITS.ITEM_NAME.max) soft.push(`${n} varian ke-${j + 1} nama ${V('name').trim().length}/${LIMITS.ITEM_NAME.max} (saran)`);
+      if (V('nickname').trim().length > LIMITS.NICKNAME.max) hard.push(`${n} varian ke-${j + 1} nickname ${V('nickname').trim().length}/${LIMITS.NICKNAME.max} (dipotong otomatis)`);
+      if (V('desc').trim().length > LIMITS.ITEM_DESC.max) soft.push(`${n} varian ke-${j + 1} deskripsi ${V('desc').trim().length}/${LIMITS.ITEM_DESC.max} (saran)`);
+    });
+  });
+  return { hard, soft };
+}
 // Urutan key disamakan dengan bebyte/js/data.js (key, tipe)
 const CFG_SCHEMA = [
   ['STORE_NAME','str'],['EVENT_NAME','str'],['TAG_LINE','str'],['VERSION','str'],
@@ -24,6 +76,8 @@ function getConfig() {
   CFG_SCHEMA.forEach(([k, t]) => {
     o[k] = t === 'bool' ? ($('#cfg-' + k)?.checked === true) : ($('#cfg-' + k)?.value ?? '').trim();
   });
+  o.STORE_NAME = hardTrim(o.STORE_NAME, LIMITS.STORE_NAME.max);
+  o.RECEIPT_FOOTER = hardTrim(o.RECEIPT_FOOTER, LIMITS.RECEIPT_FOOTER.max);
   return o;
 }
 function setConfig(c = {}) {
@@ -31,7 +85,7 @@ function setConfig(c = {}) {
     const el = $('#cfg-' + k);
     if (!el) return;
     if (t === 'bool') { if (c[k] !== undefined) el.checked = c[k] === true; }
-    else if (c[k] != null) el.value = c[k];
+    else if (c[k] != null) { el.value = c[k]; el.dispatchEvent(new Event('input')); }
   });
 }
 
@@ -49,6 +103,9 @@ function addVariant(listEl, data = {}) {
   row.querySelector('[data-v="active"]').checked = data.active !== false;
   row.querySelector('.btn-del-variant').onclick = () => { row.remove(); sync(); };
   row.querySelectorAll('input').forEach(i => i.addEventListener('input', sync));
+  bindLimit(row.querySelector('[data-v="name"]'), LIMITS.ITEM_NAME);
+  bindLimit(row.querySelector('[data-v="nickname"]'), LIMITS.NICKNAME);
+  bindLimit(row.querySelector('[data-v="desc"]'), LIMITS.ITEM_DESC);
   listEl.appendChild(node);
 }
 function addItem(data = {}) {
@@ -104,6 +161,10 @@ function addItem(data = {}) {
   };
   card.querySelector('.btn-dup').onclick = () => { addItem(readItem(card)); renumber(); sync(); };
   card.querySelectorAll('input').forEach(i => i.addEventListener('input', sync));
+  bindLimit(F('name'), LIMITS.ITEM_NAME);
+  bindLimit(F('nickname'), LIMITS.NICKNAME);
+  bindLimit(F('desc'), LIMITS.ITEM_DESC);
+  bindLimit(F('category'), LIMITS.CATEGORY);
   menuList.appendChild(card);
   renumber();
   sync();
@@ -116,18 +177,18 @@ function readItem(card) {
     id: Number(F('id')) || nextId(),
     name: F('name'),
     price: Number(F('price')) || 0,
-    category: F('category') || '',
+    category: hardTrim(F('category'), LIMITS.CATEGORY.max) || '',
     img: cleanImg(F('img')),
     active: C('active'),
   };
-  if (!C('has_variants') && F('nickname')) item.nickname = F('nickname');
+  if (!C('has_variants') && F('nickname')) item.nickname = hardTrim(F('nickname'), LIMITS.NICKNAME.max);
   if (F('desc')) item.desc = F('desc');
   if (C('custom_qty')) item.custom_qty = true;
   if (C('has_variants')) {
     item.variants = $$('.variant-row', card).map(r => {
       const V = (k) => r.querySelector(`[data-v="${k}"]`);
       const v = { name: V('name').value.trim() };
-      if (V('nickname').value.trim()) v.nickname = V('nickname').value.trim();
+      if (V('nickname').value.trim()) v.nickname = hardTrim(V('nickname').value.trim(), LIMITS.NICKNAME.max);
       if (V('desc').value.trim()) v.desc = V('desc').value.trim();
       v.active = V('active').checked;
       return v;
@@ -271,6 +332,13 @@ $('#btn-download').onclick = () => {
   if (menu.some(m => !m.name)) { alert('Ada item yang namanya masih kosong!'); return; }
   if (menu.some(m => !m.variants && !m.nickname)) { alert('Ada item TANPA varian yang nickname-nya masih kosong! Nickname wajib diisi kalau tidak pakai varian.'); return; }
   if (menu.some(m => !m.category)) { alert('Ada item yang kategorinya masih kosong! Pilih dari daftar (Nasi, Teh, Kopi, ...).'); return; }
+  const { hard, soft } = checkLengths();
+  if (hard.length) {
+    if (!confirm(`Ada ${hard.length} field melebihi BATAS dan akan dipotong otomatis:\n• ${hard.slice(0, 6).join('\n• ')}${hard.length > 6 ? `\n• ... +${hard.length - 6} lagi` : ''}\n\nLanjut download?`)) return;
+  }
+  if (soft.length) {
+    if (!confirm(`Saran kerapian (${soft.length}):\n• ${soft.slice(0, 6).join('\n• ')}${soft.length > 6 ? `\n• ... +${soft.length - 6} lagi` : ''}\n\nTetap download?`)) return;
+  }
   const code = generateDataJs();
   const blob = new Blob([code], { type: 'text/javascript' });
   const a = document.createElement('a');
@@ -303,6 +371,8 @@ $('#cfg-SHOW_WEBHOOK').addEventListener('change', (e) => {
   $('#cfg-WEBHOOK_URL').type = e.target.checked ? 'text' : 'password';
 });
 $$('#config-form input, #config-form textarea').forEach(el => { el.addEventListener('input', sync); el.addEventListener('change', sync); });
+bindLimit($('#cfg-STORE_NAME'), LIMITS.STORE_NAME);
+bindLimit($('#cfg-RECEIPT_FOOTER'), LIMITS.RECEIPT_FOOTER);
 
 // ---------- INIT ----------
 (function init() {
