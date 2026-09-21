@@ -1,8 +1,8 @@
-# BeByte-data — Config & Menu Builder untuk BeByte versi d-abi
+# D`Abi.data — Config & Menu Builder untuk d-abi
 
 Tool web statis (tanpa backend) untuk menyusun `js/data.js` milik
-[coatalter/bebyte](https://github.com/coatalter/bebyte) /
-[darojatun/d-abi](https://github.com/darojatun/d-abi) — format config masih kompatibel untuk keduanya.
+[darojatun/d-abi](https://github.com/darojatun/d-abi) —
+format config masih kompatibel dengan [coatalter/bebyte](https://github.com/coatalter/bebyte).
 
 ## Cara pakai
 

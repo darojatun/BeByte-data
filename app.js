@@ -1,4 +1,4 @@
-// BeByte-data — builder CONFIG + MENU -> data.js (kompatibel d-abi/js/data.js)
+// D`Abi.data — builder CONFIG + MENU -> data.js (kompatibel d-abi/js/data.js)
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
@@ -61,7 +61,8 @@ const CFG_SCHEMA = [
   ['QRIS_STATIC','str'],['DISCORD','bool'],['WEBHOOK_URL','str'],['ROLE_ID_DAPUR','str'],
 ];
 const cleanImg = (s) => String(s ?? '').trim().replace(/^\.\/+/, '');
-const LS_KEY = 'bebyte-data-draft-v1';
+const LS_KEY = 'dabi-data-draft-v1';
+const LS_KEY_OLD = 'bebyte-data-draft-v1'; // migrasi sekali dari nama lama
 
 const menuList = $('#menu-list');
 const tplItem = $('#tpl-item');
@@ -263,6 +264,7 @@ function sync() {
     const menu = collectMenu();
     previewInfo.textContent = `${menu.length} item • ${code.length} char`;
     localStorage.setItem(LS_KEY, JSON.stringify({ config: getConfig(), menu }));
+    try { localStorage.removeItem(LS_KEY_OLD); } catch {}
     markDuplicates();
     saveState.textContent = 'draft tersimpan ✓ ' + new Date().toLocaleTimeString('id-ID');
   } catch (e) { console.warn(e); }
@@ -354,6 +356,7 @@ $('#btn-copy').onclick = async () => {
 $('#btn-reset').onclick = () => {
   if (!confirm('Reset semua form ke kosong?')) return;
   localStorage.removeItem(LS_KEY);
+  try { localStorage.removeItem(LS_KEY_OLD); } catch {}
   setConfig({ STORE_NAME:'', EVENT_NAME:'', TAG_LINE:'', VERSION:'2026', MASCOT:'', LOGO:'', RECEIPT_LOGO:false, RECEIPT_FOOTER:'-= Terima Kasih =-', QRIS_STATIC:'', DISCORD:true, WEBHOOK_URL:'', ROLE_ID_DAPUR:'' });
   menuList.innerHTML = ''; addItem(); renumber(); sync();
 };
@@ -377,7 +380,7 @@ bindLimit($('#cfg-RECEIPT_FOOTER'), LIMITS.RECEIPT_FOOTER);
 // ---------- INIT ----------
 (function init() {
   try {
-    const draft = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    const draft = JSON.parse(localStorage.getItem(LS_KEY) || localStorage.getItem(LS_KEY_OLD) || 'null');
     if (draft && (draft.menu?.length || draft.config)) { loadToForm(draft); return; }
   } catch {}
   // default: contoh 1 item kosong + config d-abi
