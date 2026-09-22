@@ -11,6 +11,7 @@ const LIMITS = {
   ITEM_DESC: { max: 50, hard: false },   // kartu menu: saran deskripsi singkat
   CATEGORY: { max: 15, hard: true },     // badge kategori kartu
   RECEIPT_FOOTER: { max: 28, hard: true }, // resi: pas 1 baris penuh
+  VARIANT_COUNT: { max: 7, hard: false }, // jumlah varian per item: saran, boleh lebih kalau layar panjang
 };
 function counterHTML(cur, lim, hard) {
   const over = cur > lim;
@@ -45,7 +46,9 @@ function checkLengths() {
     if (!c.querySelector('[data-f="has_variants"]').checked && g('nickname').trim().length > LIMITS.NICKNAME.max) hard.push(`${n} nickname ${g('nickname').trim().length}/${LIMITS.NICKNAME.max} (dipotong otomatis)`);
     if (g('desc').trim().length > LIMITS.ITEM_DESC.max) soft.push(`${n} deskripsi ${g('desc').trim().length}/${LIMITS.ITEM_DESC.max} (saran: ≤${LIMITS.ITEM_DESC.max})`);
     if (g('category').trim().length > LIMITS.CATEGORY.max) hard.push(`${n} kategori ${g('category').trim().length}/${LIMITS.CATEGORY.max} (dipotong otomatis)`);
-    $$('.variant-row', c).forEach((r, j) => {
+    const vrows = $$('.variant-row', c);
+    if (c.querySelector('[data-f="has_variants"]').checked && vrows.length > LIMITS.VARIANT_COUNT.max) soft.push(`${n} varian ${vrows.length}/${LIMITS.VARIANT_COUNT.max} (saran: ≤${LIMITS.VARIANT_COUNT.max}, boleh lebih kalau layar panjang)`);
+    vrows.forEach((r, j) => {
       const V = (k) => r.querySelector(`[data-v="${k}"]`).value;
       if (V('name').trim().length > LIMITS.ITEM_NAME.max) soft.push(`${n} varian ke-${j + 1} nama ${V('name').trim().length}/${LIMITS.ITEM_NAME.max} (saran)`);
       if (V('nickname').trim().length > LIMITS.NICKNAME.max) hard.push(`${n} varian ke-${j + 1} nickname ${V('nickname').trim().length}/${LIMITS.NICKNAME.max} (dipotong otomatis)`);
@@ -248,6 +251,25 @@ function renumber() {
   });
   $('#menu-count').textContent = menuList.children.length;
 }
+// Jumlah varian: saran max 7 (soft, boleh lebih). Tampil sebagai counter di header VARIAN.
+function updateVariantCounts() {
+  const lim = LIMITS.VARIANT_COUNT.max;
+  $$('.menu-item', menuList).forEach((c) => {
+    const n = $$('.variant-row', c).length;
+    let el = c.querySelector('.variant-count');
+    if (!el) {
+      const head = c.querySelector('.variant-box span');
+      if (!head) return;
+      el = document.createElement('span');
+      el.className = 'variant-count ml-1 font-mono';
+      head.appendChild(el);
+    }
+    const over = n > lim;
+    el.textContent = `(${n}/${lim} saran)`;
+    el.className = 'variant-count ml-1 font-mono ' + (over ? 'text-orange-500' : (n >= lim - 2 ? 'text-orange-400' : 'text-purple-400'));
+    el.title = over ? 'Melebihi saran 7 — gapapa kalau layar panjang, tapi cek tampilan modal varian' : 'Saran max 7 varian per item';
+  });
+}
 
 // ---------- GENERATE data.js ----------
 function generateDataJs() {
@@ -266,6 +288,7 @@ function sync() {
     localStorage.setItem(LS_KEY, JSON.stringify({ config: getConfig(), menu }));
     try { localStorage.removeItem(LS_KEY_OLD); } catch {}
     markDuplicates();
+    updateVariantCounts();
     saveState.textContent = 'draft tersimpan ✓ ' + new Date().toLocaleTimeString('id-ID');
   } catch (e) { console.warn(e); }
 }
